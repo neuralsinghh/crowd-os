@@ -30,7 +30,7 @@ const RADIUS = 160;
 // 🏟️ INIT GATES (pixel-perfect wedges)
 // 🏟️ INIT GATES (premium compass wedges)
 function initGates() {
-    const layer = document.getElementById("gates-layer"); // Wait, I'm using HTML divs now
+    const layer = document.getElementById("gates-layer");
     const container = document.querySelector(".stadium-container");
 
     // Angles for the gates
@@ -161,7 +161,7 @@ function updateChart(crowdArray) {
 // 🚨 ALERT
 function showAlert(text) {
     const el = document.getElementById("alert-container");
-    el.innerHTML = `<div class="alert-banner">⚠️ ${text}</div>`;
+    el.innerHTML = `<div class="alert-banner" role="alert"><span aria-hidden="true">⚠️</span> ${text}</div>`;
 }
 
 // 🧭 ROUTE
@@ -198,11 +198,11 @@ function renderGateCards(crowd) {
 
         el.innerHTML = `
             <div class="gate-title">Gate ${g.gate}</div>
-            <div class="gate-stat">${Math.round(g.people)} / ${g.capacity}</div>
-            <div class="gate-percent">${Math.round(g.load * 100)}%</div>
-            <div class="wait"><span class="icon">⏱</span> ${eta} min</div>
-            <button class="rush-btn" onclick="console.log('Gate ${g.gate} clicked'); triggerRush('${g.gate}')">
-                🏃 Trigger Rush
+            <div class="gate-stat" aria-label="${Math.round(g.people)} people out of ${g.capacity} capacity">${Math.round(g.people)} / ${g.capacity}</div>
+            <div class="gate-percent" aria-label="Load percentage: ${Math.round(g.load * 100)}%">${Math.round(g.load * 100)}%</div>
+            <div class="wait" aria-label="Estimated wait time: ${eta} minutes"><span class="icon" aria-hidden="true">⏱</span> ${eta} min</div>
+            <button class="rush-btn" aria-label="Trigger rush simulation for Gate ${g.gate}" tabindex="0" onclick="console.log('Gate ${g.gate} clicked'); triggerRush('${g.gate}')">
+                <span aria-hidden="true">🏃</span> Trigger Rush
             </button>
         `;
 
@@ -217,7 +217,7 @@ function triggerRush(gate) {
 
     const alertBox = document.getElementById("trigger-alert-box");
     if (alertBox) {
-        alertBox.innerHTML = `🚨 Gate ${gate} is Triggered!`;
+        alertBox.innerHTML = `<span aria-hidden="true">🚨</span> Gate ${gate} is Triggered!`;
         alertBox.style.display = "block";
         
         // Reset animation
@@ -278,10 +278,62 @@ function renderDashboard(data) {
     });
 }
 
+// 🗺️ INIT GOOGLE MAPS
+async function initGoogleMaps() {
+    try {
+        const response = await fetch(`${BASE_URL}/api/config`);
+        const data = await response.json();
+        const apiKey = data.googleMapsApiKey;
+
+        if (!apiKey) {
+            console.warn("⚠️ No Google Maps API key found.");
+            return;
+        }
+
+        // Show map container
+        const mapContainer = document.getElementById("google-map");
+        if (mapContainer) mapContainer.style.display = "block";
+
+        // Load Google Maps script dynamically
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap`;
+        script.async = true;
+        script.defer = true;
+
+        window.initMap = function() {
+            // Example stadium coordinates (San Francisco)
+            const stadiumLocation = { lat: 37.7749, lng: -122.4194 };
+            
+            const map = new google.maps.Map(document.getElementById("google-map"), {
+                zoom: 14,
+                center: stadiumLocation,
+                styles: [
+                    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] }
+                ]
+            });
+            
+            // Add a marker for the stadium
+            new google.maps.Marker({
+                position: stadiumLocation,
+                map: map,
+                title: "Stadium Center"
+            });
+        };
+
+        document.head.appendChild(script);
+
+    } catch (err) {
+        console.error("Failed to load Google Maps configuration:", err);
+    }
+}
+
 // 🚀 START
 window.onload = () => {
     initGates();  // Build dynamic gate layout first
     initChart();
+    initGoogleMaps();
 
     const socket = io(BASE_URL);
 

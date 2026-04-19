@@ -12,15 +12,15 @@
 
 <body>
 
-    <div class="main-wrapper">
+    <main class="main-wrapper">
 
         <!-- HEADER -->
         <header>
-            <h1>🚦 CrowdOS Live Dashboard</h1>
+            <h1><span aria-hidden="true">🚦</span> CrowdOS Live Dashboard</h1>
         </header>
 
         <!-- LOCATION SELECTOR -->
-        <div class="location-container premium-location">
+        <section class="location-container premium-location" aria-label="Location Selector">
             <div class="location-header">
                 <div class="pulse-dot"></div>
                 <label for="user-location">📍 Select Your Location:</label>
@@ -34,20 +34,20 @@
                 </select>
                 <!-- Custom Arrow -->
                 <svg class="custom-arrow" width="14" height="10" viewBox="0 0 14 10" fill="none"
-                    xmlns="http://www.w3.org/2000/svg">
+                    xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <path d="M1 1L7 8L13 1" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round" />
                 </svg>
             </div>
-        </div>
+        </section>
 
         <!-- ALERT -->
-        <div id="alert-container"></div>
+        <div id="alert-container" aria-live="polite"></div>
 
         <!-- AI PANEL -->
-        <div class="decision-container ai-panel">
+        <section class="decision-container ai-panel" aria-label="AI Recommendation Panel">
             <div class="decision-header">
-                <span class="ai-icon-wrapper">
+                <span class="ai-icon-wrapper" aria-hidden="true">
                     <span class="ai-live-dot"></span>
                     🤖
                 </span>
@@ -76,8 +76,8 @@
                     </div>
                 </div>
 
-                <div class="ai-alert-box">
-                    <span class="alert-icon">⚠️</span>
+                <div class="ai-alert-box" aria-live="polite">
+                    <span class="alert-icon" aria-hidden="true">⚠️</span>
                     <div class="alert-text">
                         <p class="prediction" id="prediction">Gate D may reach 70% load soon</p>
                         <p class="proactive">AI is proactively redirecting crowd before congestion occurs.</p>
@@ -88,10 +88,10 @@
                     <span class="source-tag" id="source">Source: Simulation</span>
                 </div>
             </div>
-        </div>
+        </section>
 
         <!-- MAP -->
-        <div class="map-container">
+        <section class="map-container" aria-label="Stadium Floor Plan">
             <h2>Stadium Floor Plan</h2>
 
             <div class="map-wrapper">
@@ -106,33 +106,33 @@
 
                     <!-- GATES (FIXED) -->
 
-                    <div id="map-gate-A" class="map-gate gate-wrapper gate-a">
+                    <div id="map-gate-A" class="map-gate gate-wrapper gate-a" aria-label="Map visual for Gate A" tabindex="0">
                         <div class="gate-label">Gate A</div>
-                        <svg class="gate-svg" viewBox="0 0 60 70">
+                        <svg class="gate-svg" viewBox="0 0 60 70" aria-hidden="true">
                             <!-- Base at y=70 (width 60), Top at y=0 (width 24, from 18 to 42) -->
                             <polygon points="18,0 42,0 60,70 0,70" class="gate-poly"></polygon>
                         </svg>
                     </div>
 
-                    <div id="map-gate-B" class="map-gate gate-wrapper gate-b">
+                    <div id="map-gate-B" class="map-gate gate-wrapper gate-b" aria-label="Map visual for Gate B" tabindex="0">
                         <div class="gate-label">Gate B</div>
-                        <svg class="gate-svg" viewBox="0 0 70 60">
+                        <svg class="gate-svg" viewBox="0 0 70 60" aria-hidden="true">
                             <!-- Base at x=0 (height 60), Top at x=70 (height 24, from 18 to 42) -->
                             <polygon points="0,0 70,18 70,42 0,60" class="gate-poly"></polygon>
                         </svg>
                     </div>
 
-                    <div id="map-gate-C" class="map-gate gate-wrapper gate-c">
+                    <div id="map-gate-C" class="map-gate gate-wrapper gate-c" aria-label="Map visual for Gate C" tabindex="0">
                         <div class="gate-label">Gate C</div>
-                        <svg class="gate-svg" viewBox="0 0 60 70">
+                        <svg class="gate-svg" viewBox="0 0 60 70" aria-hidden="true">
                             <!-- Base at y=0 (width 60), Top at y=70 (width 24, from 18 to 42) -->
                             <polygon points="0,0 60,0 42,70 18,70" class="gate-poly"></polygon>
                         </svg>
                     </div>
 
-                    <div id="map-gate-D" class="map-gate gate-wrapper gate-d">
+                    <div id="map-gate-D" class="map-gate gate-wrapper gate-d" aria-label="Map visual for Gate D" tabindex="0">
                         <div class="gate-label">Gate D</div>
-                        <svg class="gate-svg" viewBox="0 0 70 60">
+                        <svg class="gate-svg" viewBox="0 0 70 60" aria-hidden="true">
                             <!-- Base at x=70 (height 60), Top at x=0 (height 24, from 18 to 42) -->
                             <polygon points="0,18 70,0 70,60 0,42" class="gate-poly"></polygon>
                         </svg>
@@ -140,25 +140,28 @@
 
                 </div>
             </div>
-        </div>
+
+            <!-- GOOGLE MAP INTEGRATION -->
+            <div id="google-map" style="height: 300px; width: 100%; margin-top: 20px; border-radius: 12px; display: none; border: 1px solid rgba(255, 255, 255, 0.1);" aria-label="Interactive Google Maps View" tabindex="0"></div>
+        </section>
 
         <!-- CHART -->
-        <div class="chart-container">
-            <h2>📊 Live Crowd Trends</h2>
+        <section class="chart-container" aria-label="Live Crowd Trends Chart">
+            <h2><span aria-hidden="true">📊</span> Live Crowd Trends</h2>
             <div class="chart-wrapper">
-                <canvas id="trafficChart"></canvas>
+                <canvas id="trafficChart" role="img" aria-label="Line chart showing live crowd traffic for each gate"></canvas>
             </div>
-        </div>
+        </section>
 
-        <div id="trigger-alert-box" class="trigger-alert" style="display: none;"></div>
+        <div id="trigger-alert-box" class="trigger-alert" style="display: none;" aria-live="assertive"></div>
 
         <!-- GATES GRID -->
-        <div class="container" id="gates"></div>
+        <section class="container" id="gates" aria-label="Gate Statistics List"></section>
 
         <footer class="app-footer">
-            Made with ❤️ by neuralsingh
+            Made with <span aria-hidden="true">❤️</span> by neuralsingh
         </footer>
-    </div>
+    </main>
 
 
 
