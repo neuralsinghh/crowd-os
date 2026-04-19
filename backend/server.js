@@ -15,9 +15,16 @@ const { triggerRush, getCrowdData } = require("../simulation/sim");
 const db = require('./database');
 
 const app = express();
-app.use(helmet()); // Security headers
+app.disable("x-powered-by"); // Hide Technology Stack
+
+app.use(helmet({
+    contentSecurityPolicy: { useDefaults: true },
+    frameguard: { action: 'deny' },
+    xssFilter: true
+})); // Security headers
+
 app.use(cors({ origin: ["http://localhost:3000"] }));
-app.use(express.json());
+app.use(express.json({ limit: "10kb" })); // Payload size limit
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -39,6 +46,10 @@ const PORT = process.env.PORT || 3000;
 // ==========================================
 app.post("/api/rush/:gateId", (req, res) => {
     const { gateId } = req.params;
+
+    if (gateId && gateId.length > 10) {
+        return res.status(400).json({ success: false, message: "Gate ID length exceeds limit" });
+    }
 
     if (!gateId || typeof gateId !== 'string' || gateId.trim() === '') {
         return res.status(400).json({ success: false, message: "Invalid or missing Gate ID" });
@@ -67,23 +78,50 @@ app.post("/api/rush/:gateId", (req, res) => {
 // ==========================================
 // 📈 HISTORY ENDPOINT
 // ==========================================
+let historyCache = { timestamp: 0, data: null };
+
+/**
+ * @route GET /api/history
+ * @desc Retrieves the last 20 crowd distribution records from the database.
+ * @returns {Object} { success: boolean, message: string, data: Array }
+ */
 app.get("/api/history", (req, res) => {
+    // Optimization: Cache history to prevent redundant DB I/O during heavy traffic
+    if (Date.now() - historyCache.timestamp < 5000 && historyCache.data) {
+        return res.json(historyCache.data);
+    }
+
     try {
         const rows = db
             .prepare(`SELECT * FROM crowd_history ORDER BY id DESC LIMIT 20`)
             .all();
 
-        res.json({ history: rows.reverse() });
+        const responsePayload = { success: true, message: "History retrieved successfully", data: rows.reverse() };
+        historyCache = { timestamp: Date.now(), data: responsePayload };
+        res.json(responsePayload);
 
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error("[Server] History fetch error:", err.message);
+        res.status(500).json({ success: false, message: "Internal server error", error: err.message });
     }
 });
 
 // ==========================================
 // 🚀 DECISION API
 // ==========================================
+let decisionCache = { timestamp: 0, data: null };
+
+/**
+ * @route GET /api/decision
+ * @desc Obtains an AI-driven decision for the current crowd distribution.
+ * @returns {Object} { success: boolean, message: string, data: Object }
+ */
 app.get("/api/decision", async (req, res) => {
+
+    // Optimization: Reuse recent AI decision to prevent redundant complex computation
+    if (Date.now() - decisionCache.timestamp < 5000 && decisionCache.data) {
+        return res.json(decisionCache.data);
+    }
 
     try {
         let observation;
@@ -93,7 +131,7 @@ app.get("/api/decision", async (req, res) => {
             const agentResult = await runAgent();
             observation = agentResult.observation;
         } catch (err) {
-            console.warn("⚠️ Agent failed → simulation fallback");
+            console.warn("[Server] ⚠️ Agent failed → simulation fallback");
             observation = getCrowdData();
         }
 
@@ -102,20 +140,29 @@ app.get("/api/decision", async (req, res) => {
         try {
             aiText = await getAIDecision(observation);
         } catch (err) {
-            console.warn("⚠️ Gemini failed:", err.message);
+            console.warn("[Server] ⚠️ Gemini failed:", err.message);
         }
 
-        return res.json({
-            timestamp: Date.now(),
-            source: aiText ? "agent + gemini" : "simulation",
-            crowd: observation,
-            decision: aiText || "AI Suggestion: Choose the least congested gate."
-        });
+        const responsePayload = {
+            success: true,
+            message: "Decision retrieved successfully",
+            data: {
+                timestamp: Date.now(),
+                source: aiText ? "agent + gemini" : "simulation",
+                crowd: observation,
+                decision: aiText || "AI Suggestion: Choose the least congested gate."
+            }
+        };
+
+        decisionCache = { timestamp: Date.now(), data: responsePayload };
+        return res.json(responsePayload);
 
     } catch (err) {
+        console.error("[Server] Decision API error:", err.message);
         return res.status(500).json({
-            error: "Server error",
-            details: err.message
+            success: false,
+            message: "Server error",
+            error: err.message
         });
     }
 });
@@ -123,27 +170,47 @@ app.get("/api/decision", async (req, res) => {
 // ==========================================
 // 🧪 HEALTH CHECK
 // ==========================================
-app.get("/", (req, res) => {
-    res.send("🚀 CrowdOS Server Running");
+/**
+ * @route GET /
+ * @route GET /api/health
+ * @desc API Health Check
+ * @returns {Object} { success: boolean, message: string }
+ */
+app.get(["/", "/api/health"], (req, res) => {
+    res.json({ success: true, message: "🚀 CrowdOS Server Running" });
 });
 
 // ==========================================
 // 🗺️ CONFIG API
 // ==========================================
+/**
+ * @route GET /api/config
+ * @desc Retrieves non-sensitive environment configuration for the frontend.
+ * @returns {Object} { success: boolean, message: string, data: Object }
+ */
 app.get("/api/config", (req, res) => {
     res.json({
-        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || ''
+        success: true,
+        message: "Config retrieved successfully",
+        data: {
+            googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY || ''
+        }
     });
 });
 
 // ==========================================
 // 🚨 ERROR HANDLING MIDDLEWARE
 // ==========================================
+/**
+ * Global Error Handler Middleware
+ */
 app.use((err, req, res, next) => {
-    console.error("Unhandled Error:", err.message);
-    res.status(500).json({
-        error: "Internal Server Error",
-        ...(process.env.NODE_ENV === 'development' && { details: err.message })
+    console.error("[Server] Unhandled Error:", err.message);
+    const statusCode = err.status || 500;
+    res.status(statusCode).json({
+        success: false,
+        message: statusCode === 400 ? "Bad Request" : "Internal Server Error",
+        ...(process.env.NODE_ENV === 'development' && { data: err.message })
     });
 });
 
@@ -151,10 +218,10 @@ app.use((err, req, res, next) => {
 // 🔌 WEBSOCKET
 // ==========================================
 io.on("connection", (socket) => {
-    console.log("🟢 Client connected");
+    console.info("[Server] 🟢 Client connected");
 
     socket.on("disconnect", () => {
-        console.log("🔴 Client disconnected");
+        console.info("[Server] 🔴 Client disconnected");
     });
 });
 
@@ -192,7 +259,7 @@ setInterval(async () => {
         io.emit("crowd_update", payload);
 
     } catch (err) {
-        console.error("❌ Loop Error:", err.message);
+        console.error("[Server] ❌ Loop Error:", err.message);
     }
 
 }, 2000);
@@ -202,7 +269,7 @@ setInterval(async () => {
 // ==========================================
 if (require.main === module) {
     server.listen(PORT, () => {
-        console.log(`🔥 Server running at http://localhost:${PORT}`);
+        console.info(`[Server] 🔥 Server running at http://localhost:${PORT}`);
     });
 }
 

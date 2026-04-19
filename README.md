@@ -14,7 +14,24 @@ Unlike traditional dashboards that only visualize crowd data, CrowdOS acts on it
 
 ---
 
+## 🎯 Problem–Solution Alignment
+
+CrowdOS directly addresses key inefficiencies in large-scale crowd management systems:
+
+* **Problem:** Unpredictable wait times and overcrowded gates
+  → **Solution:** Real-time congestion prediction and dynamic gate recommendation
+* **Problem:** Uneven crowd distribution across entry points
+  → **Solution:** Intelligent routing powered by live data and AI decision logic
+* **Problem:** Lack of real-time decision support for attendees
+  → **Solution:** Interactive dashboard with route visualization and wait-time estimation
+* **Problem:** Sudden congestion spikes
+  → **Solution:** Predictive engine that forecasts crowd buildup and triggers proactive rerouting
+
+---
+
 ## ⚙️ Key Features
+
+* Directly aligned with real-world crowd management problem scenarios
 
 ### 🧠 Intelligent Gate Recommendation
 
@@ -143,6 +160,10 @@ Note: Replace your_google_maps_api_key with your actual API key.
 * 🎤 Concert optimization
 * 🏙️ Smart city systems
 * 🚨 Emergency evacuation planning
+
+---
+
+CrowdOS transforms passive crowd monitoring into an active decision-making system, directly solving critical inefficiencies in event management.
 
 ---
 

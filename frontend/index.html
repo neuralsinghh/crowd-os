@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AI-driven crowd intelligence and real-time navigation system for smart stadium management.">
     <title>CrowdOS | AI Crowd Intelligence Dashboard</title>
 
     <link rel="stylesheet" href="style.css">
@@ -19,8 +20,8 @@
             <h1><span aria-hidden="true">🚦</span> CrowdOS Live Dashboard</h1>
         </header>
 
-        <!-- LOCATION SELECTOR -->
-        <section class="location-container premium-location" aria-label="Location Selector">
+        <!-- LOCATION SELECTOR (NAV) -->
+        <nav class="location-container premium-location" aria-label="Location Selection Navigation">
             <div class="location-header">
                 <div class="pulse-dot"></div>
                 <label for="user-location">📍 Select Your Location:</label>
@@ -39,7 +40,7 @@
                         stroke-linejoin="round" />
                 </svg>
             </div>
-        </section>
+        </nav>
 
         <!-- ALERT -->
         <div id="alert-container" aria-live="polite"></div>
@@ -143,6 +144,8 @@
 
             <!-- GOOGLE MAP INTEGRATION -->
             <div id="google-map" style="height: 300px; width: 100%; margin-top: 20px; border-radius: 12px; display: none; border: 1px solid rgba(255, 255, 255, 0.1);" aria-label="Interactive Google Maps View" tabindex="0"></div>
+            
+            <div id="route-info-box" style="display: none; background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 8px; padding: 12px; margin-top: 12px; color: #e2e8f0; font-size: 0.95rem; text-align: center;" aria-live="polite"></div>
         </section>
 
         <!-- CHART -->

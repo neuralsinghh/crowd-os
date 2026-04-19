@@ -9,6 +9,20 @@ let historicalData = { A: [], B: [], C: [], D: [] };
 
 let lastTimestamp = 0;
 
+let googleMap;
+let directionsService;
+let directionsRenderer;
+let destinationMarker;
+let infoWindow;
+
+const STADIUM_CENTER = { lat: 37.7749, lng: -122.4194 };
+const GATE_COORDINATES = {
+    A: { lat: 37.7755, lng: -122.4180 },
+    B: { lat: 37.7745, lng: -122.4180 },
+    C: { lat: 37.7745, lng: -122.4200 },
+    D: { lat: 37.7755, lng: -122.4200 }
+};
+
 const distanceMap = {
     "Parking A": { A: 100, B: 180, C: 140, D: 200 },
     "Parking B": { A: 160, B: 120, C: 150, D: 100 },
@@ -24,11 +38,11 @@ const GATE_CONFIG = [
     { id: "D" }
 ];
 
-const CX = 200, CY = 200;
-const RADIUS = 160;
-
-// 🏟️ INIT GATES (pixel-perfect wedges)
 // 🏟️ INIT GATES (premium compass wedges)
+/**
+ * Initializes the visual gates layer.
+ * Sets the predefined angles for gates A, B, C, D.
+ */
 function initGates() {
     const layer = document.getElementById("gates-layer");
     const container = document.querySelector(".stadium-container");
@@ -62,6 +76,9 @@ function makeCleanDataset(label, color) {
     };
 }
 
+/**
+ * Initializes the Chart.js instance for real-time traffic visualization.
+ */
 function initChart() {
     const ctx = document.getElementById('trafficChart').getContext('2d');
 
@@ -133,7 +150,12 @@ function initChart() {
     });
 }
 
-// 📈 UPDATE CHART
+/**
+ * Updates the real-time chart with new crowd load data.
+ * Maintains a rolling window of history data points.
+ * 
+ * @param {Array} crowdArray - The latest array of crowd load statistics.
+ */
 function updateChart(crowdArray) {
     const now = new Date().toLocaleTimeString();
 
@@ -165,7 +187,7 @@ function showAlert(text) {
 }
 
 // 🧭 ROUTE
-function drawRoute(gate) {
+function drawRoute(gate, statusClass = 'unknown') {
     const route = document.getElementById("nav-route");
 
     // Remove all previous direction classes
@@ -175,9 +197,19 @@ function drawRoute(gate) {
 
     // Add direction class based on gate
     route.classList.add("active", `route-${gate.toLowerCase()}`);
+
+    // Trigger Google Maps Routing
+    if (typeof routeOnGoogleMap === "function") {
+        routeOnGoogleMap(gate, statusClass);
+    }
 }
 
-// 🎯 LOAD LEVEL
+/**
+ * Determines the safety level classification based on load percentage.
+ * 
+ * @param {number} load - The percentage of load (0.0 to 1.0).
+ * @returns {string} The CSS class for the level (safe, warning, danger).
+ */
 function getLevel(load) {
     if (load > 0.8) return "danger";
     if (load > 0.5) return "warning";
@@ -200,14 +232,23 @@ function renderGateCards(crowd) {
             <div class="gate-title">Gate ${g.gate}</div>
             <div class="gate-stat" aria-label="${Math.round(g.people)} people out of ${g.capacity} capacity">${Math.round(g.people)} / ${g.capacity}</div>
             <div class="gate-percent" aria-label="Load percentage: ${Math.round(g.load * 100)}%">${Math.round(g.load * 100)}%</div>
-            <div class="wait" aria-label="Estimated wait time: ${eta} minutes"><span class="icon" aria-hidden="true">⏱</span> ${eta} min</div>
-            <button class="rush-btn" aria-label="Trigger rush simulation for Gate ${g.gate}" tabindex="0" onclick="console.log('Gate ${g.gate} clicked'); triggerRush('${g.gate}')">
+            <div class="wait" aria-label="Estimated wait time: ${eta} minutes" aria-describedby="wait-info-${g.gate}"><span class="icon" aria-hidden="true">⏱</span> <span id="wait-info-${g.gate}">${eta} min</span></div>
+            <button type="button" class="rush-btn" aria-label="Trigger rush simulation for Gate ${g.gate}" tabindex="0" onclick="console.log('Gate ${g.gate} clicked'); debouncedTriggerRush('${g.gate}')">
                 <span aria-hidden="true">🏃</span> Trigger Rush
             </button>
         `;
 
         container.appendChild(el);
     });
+}
+
+// ⚡ PERFORMANCE OPTIMIZATION: Debounce utility to prevent API flooding
+function debounce(func, wait) {
+    let timeout;
+    return function(...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
 }
 
 // 🏃
@@ -232,11 +273,14 @@ function triggerRush(gate) {
     }
 }
 
+// Optimization: Debounce user clicks to prevent redundant processing
+const debouncedTriggerRush = debounce(triggerRush, 500);
+
 // 🎯 MAIN
 function renderDashboard(data) {
     const bestGate = data.crowd.reduce((a, b) => a.load < b.load ? a : b);
 
-    drawRoute(bestGate.gate);
+    drawRoute(bestGate.gate, getLevel(bestGate.load));
 
     const decisionBadge = document.getElementById("decision");
     if (decisionBadge) {
@@ -278,12 +322,14 @@ function renderDashboard(data) {
     });
 }
 
-// 🗺️ INIT GOOGLE MAPS
+/**
+ * Fetches the backend configuration and initializes the Google Maps integration.
+ */
 async function initGoogleMaps() {
     try {
         const response = await fetch(`${BASE_URL}/api/config`);
         const data = await response.json();
-        const apiKey = data.googleMapsApiKey;
+        const apiKey = data.data?.googleMapsApiKey;
 
         if (!apiKey) {
             console.warn("⚠️ No Google Maps API key found.");
@@ -301,12 +347,19 @@ async function initGoogleMaps() {
         script.defer = true;
 
         window.initMap = function() {
-            // Example stadium coordinates (San Francisco)
-            const stadiumLocation = { lat: 37.7749, lng: -122.4194 };
+            // DirectionsService computes the optimal path between coordinates
+            directionsService = new google.maps.DirectionsService();
+            // DirectionsRenderer visually draws the computed path on the map
+            directionsRenderer = new google.maps.DirectionsRenderer({
+                suppressMarkers: false,
+                polylineOptions: { strokeColor: "#38bdf8", strokeWeight: 5 }
+            });
             
-            const map = new google.maps.Map(document.getElementById("google-map"), {
-                zoom: 14,
-                center: stadiumLocation,
+            infoWindow = new google.maps.InfoWindow();
+            
+            googleMap = new google.maps.Map(document.getElementById("google-map"), {
+                zoom: 15,
+                center: STADIUM_CENTER,
                 styles: [
                     { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
                     { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
@@ -314,10 +367,12 @@ async function initGoogleMaps() {
                 ]
             });
             
-            // Add a marker for the stadium
+            directionsRenderer.setMap(googleMap);
+            
+            // Add a marker for the stadium center
             new google.maps.Marker({
-                position: stadiumLocation,
-                map: map,
+                position: STADIUM_CENTER,
+                map: googleMap,
                 title: "Stadium Center"
             });
         };
@@ -329,11 +384,73 @@ async function initGoogleMaps() {
     }
 }
 
+/**
+ * Triggers Google Maps DirectionsService to calculate the walking path
+ * from the user's origin to the target gate, and renders it using DirectionsRenderer.
+ */
+function routeOnGoogleMap(gate, statusClass) {
+    if (!directionsService || !directionsRenderer) return;
+
+    const destination = GATE_COORDINATES[gate];
+    if (!destination) return;
+
+    // Fixed mock origin (e.g., parking lot/entry point)
+    const origin = { lat: 37.7730, lng: -122.4210 }; 
+
+    directionsService.route(
+        {
+            origin: origin,
+            destination: destination,
+            travelMode: google.maps.TravelMode.WALKING
+        },
+        (response, status) => {
+            const infoBox = document.getElementById("route-info-box");
+
+            if (status === "OK") {
+                // Render path
+                directionsRenderer.setDirections(response);
+                
+                // Extract and display route info
+                const route = response.routes[0].legs[0];
+                if (infoBox) {
+                    infoBox.style.display = "block";
+                    infoBox.innerHTML = `<strong>📍 Recommended Route:</strong> ${route.distance.text} | Approx. ${route.duration.text} walking`;
+                }
+
+                // Create info window at destination
+                if (destinationMarker) destinationMarker.setMap(null);
+                destinationMarker = new google.maps.Marker({
+                    position: destination,
+                    map: googleMap,
+                    title: `Gate ${gate}`
+                });
+
+                const formattedStatus = statusClass.charAt(0).toUpperCase() + statusClass.slice(1);
+                infoWindow.setContent(`<div style="color: #000; font-family: sans-serif;"><strong>Gate ${gate}</strong><br/>Status: ${formattedStatus}</div>`);
+                infoWindow.open(googleMap, destinationMarker);
+
+            } else {
+                console.warn("Directions request failed due to " + status);
+                
+                // Graceful fallback display
+                if (infoBox) {
+                    infoBox.style.display = "block";
+                    infoBox.innerHTML = `⚠️ Smart navigation unavailable (Error: ${status}). Please follow stadium signs to Gate ${gate}.`;
+                }
+            }
+        }
+    );
+}
+
 // 🚀 START
 window.onload = () => {
     initGates();  // Build dynamic gate layout first
-    initChart();
     initGoogleMaps();
+
+    // Optimization: Defer chart rendering to unblock the initial critical UI render
+    setTimeout(() => {
+        initChart();
+    }, 100);
 
     const socket = io(BASE_URL);
 

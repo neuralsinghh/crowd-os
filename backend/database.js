@@ -4,7 +4,7 @@ const path = require('path');
 const dbPath = path.resolve(__dirname, '../crowdos.db');
 const db = new Database(dbPath);
 
-console.log('🔗 Connected to SQLite database.');
+console.info('[Database] 🔗 Connected to SQLite database.');
 
 // Ensure table exists (synchronous execute)
 db.exec(`

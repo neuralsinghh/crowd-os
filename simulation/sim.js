@@ -24,7 +24,10 @@ const roles = {
   dynamic: { min: 0.4, max: 0.9 }
 };
 
-// 🔄 ROTATE ROLES (realistic variation)
+/**
+ * Shuffles and reassigns congestion roles (safe, warning, danger, dynamic) to gates.
+ * Ensures a realistic distribution of crowd load across the stadium.
+ */
 function rotateRoles() {
   const roleKeys = ['safe', 'warning', 'danger', 'dynamic'];
 
@@ -38,10 +41,14 @@ function rotateRoles() {
     gate.role = roleKeys[idx];
   });
 
-  console.log("🔄 Roles rotated:", gates.map(g => `${g.id}:${g.role}`).join(" | "));
+  console.info("[Simulation] 🔄 Roles rotated:", gates.map(g => `${g.id}:${g.role}`).join(" | "));
 }
 
-// 🧠 UPDATE CROWD
+/**
+ * Updates the current crowd distribution for all gates based on their assigned roles.
+ * Adds random variation and ensures numbers stay within configured bounds.
+ * Saves the current state to the database history.
+ */
 function updateCrowd() {
 
   // 🔄 rotate roles periodically
@@ -90,11 +97,16 @@ function updateCrowd() {
     );
 
   } catch (err) {
-    console.error("❌ DB insert failed:", err);
+    console.error("[Simulation] ❌ DB insert failed:", err);
   }
 }
 
-// 📊 GET DATA (API)
+/**
+ * Computes and retrieves the current crowd load statistics for all gates.
+ * Triggers an internal simulation update before returning data.
+ *
+ * @returns {Array<{gate: string, people: number, capacity: number, load: number}>} Array of gate statistics.
+ */
 function getCrowdData() {
 
   updateCrowd();
@@ -112,7 +124,12 @@ function getCrowdData() {
   });
 }
 
-// 🏃 RUSH EVENT
+/**
+ * Simulates a sudden rush or spike in traffic at a specific gate.
+ * 
+ * @param {string} gateId - The unique identifier of the gate (e.g., 'A', 'B').
+ * @returns {boolean} True if the gate was successfully found and triggered, false otherwise.
+ */
 function triggerRush(gateId) {
 
   const gate = gates.find(g => g.id === gateId);
@@ -124,7 +141,7 @@ function triggerRush(gateId) {
 
   gate.current = Math.min(gate.capacity, gate.current + spike);
 
-  console.log(`⚡ Rush triggered at Gate ${gateId}`);
+  console.info(`[Simulation] ⚡ Rush triggered at Gate ${gateId}`);
 
   return true;
 }
